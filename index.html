@@ -1,0 +1,2221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Contemporary Villa - Habrick Architectural Designs</title>
+    <meta name="description" content="Explore a premium 3D modern contemporary house design in Palakkad, Kerala. Customize materials, lighting, and camera angles interactively in real-time.">
+    <meta name="keywords" content="3d house design, modern contemporary villa, kerala architecture, interactive 3d model, webgl house model, three.js house, architectural visualization">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Three.js and Libraries via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #08090b;
+            --text-color: #f3f4f6;
+            --primary: #00e5ff;
+            --primary-glow: rgba(0, 229, 255, 0.3);
+            --accent: #ffb300;
+            --glass-bg: rgba(13, 17, 23, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.06);
+            --glass-blur: blur(16px);
+            --panel-width: 360px;
+            --font-display: 'Outfit', sans-serif;
+            --font-sans: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-sans);
+            font-size: 14px;
+        }
+
+        /* Fullscreen Canvas Container */
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        #webgl-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* UI Layer Overlay */
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: grid;
+            grid-template-columns: var(--panel-width) 1fr var(--panel-width);
+            grid-template-rows: auto 1fr auto;
+            padding: 24px;
+            gap: 24px;
+        }
+
+        /* Interactive elements must re-enable pointer events */
+        .interactive {
+            pointer-events: auto;
+        }
+
+        /* Glassmorphic Panel Base */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .glass-panel:hover {
+            border-color: rgba(0, 229, 255, 0.2);
+            box-shadow: 0 12px 40px 0 rgba(0, 229, 255, 0.05);
+        }
+
+        /* Header (Brand & Title) */
+        header {
+            grid-column: 1 / 4;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary), #0084ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #000;
+            font-weight: 800;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .brand-text h1 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .brand-text p {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Quick View Badges */
+        .info-badges {
+            display: flex;
+            gap: 12px;
+        }
+
+        .badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-family: var(--font-display);
+        }
+
+        .badge i {
+            color: var(--primary);
+        }
+
+        /* Configurator Panel (Left) */
+        .left-panel {
+            grid-column: 1;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+        }
+
+        .left-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+        .left-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .section-title i {
+            color: var(--primary);
+            font-size: 0.95rem;
+        }
+
+        .control-group {
+            margin-bottom: 16px;
+        }
+
+        .control-label {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 8px;
+            display: block;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Color Options Picker */
+        .color-picker {
+            display: flex;
+            gap: 10px;
+        }
+
+        .color-option {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+
+        .color-option.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px var(--primary-glow);
+        }
+
+        .color-option::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -32px;
+            left: 50%;
+            transform: translateX(-50%) translateY(5px);
+            background: #000;
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            z-index: 100;
+        }
+
+        .color-option:hover::after {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Option Buttons Grid */
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .btn-option {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 10px;
+            color: var(--text-color);
+            cursor: pointer;
+            font-family: var(--font-sans);
+            font-weight: 500;
+            text-align: center;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-option i {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.4);
+            transition: color 0.2s ease;
+        }
+
+        .btn-option:hover {
+            background: rgba(255, 255, 255, 0.06);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-option.active {
+            background: rgba(0, 229, 255, 0.08);
+            border-color: var(--primary);
+            color: var(--primary);
+            box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.05);
+        }
+
+        .btn-option.active i {
+            color: var(--primary);
+        }
+
+        /* Camera Views Panel (Right) */
+        .right-panel {
+            grid-column: 3;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .view-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 12px;
+            width: 100%;
+            text-align: left;
+            color: var(--text-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-family: var(--font-display);
+            font-weight: 500;
+        }
+
+        .view-btn i {
+            width: 28px;
+            height: 28px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .view-btn:hover {
+            background: rgba(0, 229, 255, 0.05);
+            border-color: var(--primary);
+            transform: translateX(-5px);
+        }
+
+        .view-btn.active {
+            background: rgba(0, 229, 255, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.1);
+        }
+
+        /* Ambient Lighting Toggle Buttons */
+        .light-presets {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .preset-btn {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 10px 5px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-color);
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .preset-btn i {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .preset-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .preset-btn.active {
+            background: rgba(0, 229, 255, 0.08);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .preset-btn.active i {
+            color: var(--primary);
+        }
+
+        /* Hotspot Labels floating in 3D Space */
+        .hotspot-label {
+            position: absolute;
+            z-index: 5;
+            pointer-events: auto;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .hotspot-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(0, 229, 255, 0.8);
+            border: 3px solid #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 15px var(--primary-glow);
+            color: #000;
+            font-size: 0.7rem;
+            font-weight: 700;
+            cursor: pointer;
+            position: relative;
+            z-index: 2;
+            transition: all 0.3s ease;
+        }
+
+        .hotspot-label:hover .hotspot-dot {
+            transform: scale(1.2);
+            background: var(--accent);
+            box-shadow: 0 0 20px rgba(255, 179, 0, 0.6);
+        }
+
+        .hotspot-ring {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            position: absolute;
+            animation: pulse 2s infinite ease-out;
+            pointer-events: none;
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .hotspot-label:hover .hotspot-ring {
+            border-color: var(--accent);
+        }
+
+        /* Tooltip style details next to hotspots on hover */
+        .hotspot-tooltip {
+            position: absolute;
+            left: 35px;
+            background: rgba(13, 17, 23, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 10px 14px;
+            width: 180px;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateX(10px);
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+        }
+
+        .hotspot-label:hover .hotspot-tooltip {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .hotspot-tooltip h4 {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            color: var(--primary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        .hotspot-tooltip p {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.3;
+        }
+
+        /* Dynamic Description Panel (Bottom center) */
+        .info-card {
+            grid-column: 2;
+            grid-row: 3;
+            justify-self: center;
+            width: 450px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 16px 24px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        .info-card h3 {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        .info-card p {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.4;
+        }
+
+        /* Footer Overlay (Lead form) */
+        .bottom-bar {
+            grid-column: 1 / 4;
+            grid-row: 3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        /* Lead Contact Form */
+        .lead-form-panel {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            pointer-events: auto;
+            max-width: 650px;
+            margin-right: auto;
+        }
+
+        .lead-form-panel h4 {
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .lead-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #fff;
+            font-family: var(--font-sans);
+            font-size: 0.8rem;
+            width: 130px;
+            transition: all 0.2s ease;
+        }
+
+        .lead-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 8px rgba(0, 229, 255, 0.15);
+        }
+
+        .lead-btn {
+            background: linear-gradient(135deg, var(--primary), #00a2ff);
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            color: #000;
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .lead-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        .interaction-helper {
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 0.75rem;
+            color: rgba(255,255,255,0.6);
+            align-self: center;
+            margin-left: auto;
+        }
+
+        /* Fullscreen Loading Loader */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.8s ease;
+        }
+
+        .loader-logo {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--primary), #0084ff);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: #000;
+            font-weight: 800;
+            margin-bottom: 24px;
+            box-shadow: 0 0 40px var(--primary-glow);
+            animation: bounce 2s infinite ease-in-out;
+        }
+
+        .loader-bar-container {
+            width: 240px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 12px;
+        }
+
+        .loader-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), #0084ff);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        .loader-status {
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.6);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        /* Success Toast Modal */
+        #success-toast {
+            position: fixed;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(13, 207, 142, 0.95);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-family: var(--font-display);
+            font-weight: 600;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #success-toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% {
+                transform: scale(0.5);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1.5);
+                opacity: 0;
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Responsive Styles */
+        @media (max-width: 1024px) {
+            #ui-layer {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto;
+                overflow-y: auto;
+                pointer-events: auto; /* Allow scrolling */
+                padding: 16px;
+                gap: 16px;
+            }
+            .interactive {
+                pointer-events: auto;
+            }
+            .left-panel {
+                grid-column: 1;
+                grid-row: 3;
+                max-height: none;
+            }
+            .right-panel {
+                grid-column: 1;
+                grid-row: 4;
+                max-height: none;
+            }
+            .bottom-bar {
+                grid-column: 1;
+                grid-row: 5;
+                flex-direction: column;
+                gap: 16px;
+                pointer-events: auto;
+            }
+            .lead-form-panel {
+                flex-direction: column;
+                align-items: stretch;
+                width: 100%;
+                margin-right: 0;
+            }
+            .lead-input {
+                width: 100%;
+            }
+            .interaction-helper {
+                margin-left: 0;
+                width: 100%;
+                justify-content: center;
+            }
+            .info-card {
+                grid-column: 1;
+                grid-row: 2;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Fullscreen Loading Panel -->
+    <div id="loader">
+        <div class="loader-logo">H</div>
+        <div class="loader-bar-container">
+            <div class="loader-bar" id="loader-bar"></div>
+        </div>
+        <div class="loader-status" id="loader-status">Initializing WebGL Engine...</div>
+    </div>
+
+    <!-- Canvas element for Three.js render -->
+    <div id="canvas-container">
+        <canvas id="webgl-canvas"></canvas>
+        
+        <!-- Hotspots Overlays container -->
+        <div id="hotspots-container">
+            <!-- Dynamic Hotspots will be added here -->
+        </div>
+    </div>
+
+    <!-- UI Overlay Layer -->
+    <div id="ui-layer">
+        
+        <!-- Top Header Panel -->
+        <header class="interactive">
+            <div class="brand glass-panel">
+                <div class="brand-logo">H</div>
+                <div class="brand-text">
+                    <h1>Villa Habrick</h1>
+                    <p>3D Kerala Elevation Visualizer</p>
+                </div>
+            </div>
+            
+            <div class="info-badges">
+                <div class="badge glass-panel"><i class="fa-solid fa-maximize"></i> 2,400 Sq.Ft.</div>
+                <div class="badge glass-panel"><i class="fa-solid fa-indian-rupee-sign"></i> 4 / Sq.Ft.</div>
+                <div class="badge glass-panel"><i class="fa-solid fa-location-dot"></i> Palakkad, KL</div>
+            </div>
+        </header>
+
+        <!-- Left Configurator Panel -->
+        <aside class="left-panel interactive glass-panel">
+            
+            <div class="control-group">
+                <div class="section-title">
+                    <i class="fa-solid fa-palette"></i> Paint Finish
+                </div>
+                <label class="control-label">Main Exterior walls</label>
+                <div class="color-picker" id="wall-paint-picker">
+                    <div class="color-option active" style="background-color: #eef0f2;" data-color="#eef0f2" data-tooltip="Bright Chalk"></div>
+                    <div class="color-option" style="background-color: #dfd4c6;" data-color="#dfd4c6" data-tooltip="Sunset Terracotta"></div>
+                    <div class="color-option" style="background-color: #949ca3;" data-color="#949ca3" data-tooltip="Slate Concrete"></div>
+                    <div class="color-option" style="background-color: #272c35;" data-color="#272c35" data-tooltip="Basalt Charcoal"></div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">
+                    <i class="fa-solid fa-tree"></i> Timber Accents
+                </div>
+                <label class="control-label">Louver Siding & Entry Door</label>
+                <div class="option-grid" id="wood-texture-picker">
+                    <div class="btn-option active" data-wood="teak">
+                        <i class="fa-solid fa-circle-half-stroke"></i>
+                        <span>Teak Wood</span>
+                    </div>
+                    <div class="btn-option" data-wood="oak">
+                        <i class="fa-solid fa-circle-notch"></i>
+                        <span>Dark Oak</span>
+                    </div>
+                    <div class="btn-option" data-wood="walnut">
+                        <i class="fa-solid fa-compass-drafting"></i>
+                        <span>Walnut</span>
+                    </div>
+                    <div class="btn-option" data-wood="ash">
+                        <i class="fa-solid fa-table-cells"></i>
+                        <span>Ash Gray</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">
+                    <i class="fa-solid fa-glasses"></i> Glazing Tint
+                </div>
+                <label class="control-label">Stair Tower & Balcony Windows</label>
+                <div class="option-grid" id="glass-tint-picker">
+                    <div class="btn-option active" data-tint="cyan">
+                        <i class="fa-solid fa-eye"></i>
+                        <span>Ocean Cyan</span>
+                    </div>
+                    <div class="btn-option" data-tint="bronze">
+                        <i class="fa-solid fa-sun"></i>
+                        <span>Solar Bronze</span>
+                    </div>
+                    <div class="btn-option" data-tint="dark">
+                        <i class="fa-solid fa-moon"></i>
+                        <span>Privacy Black</span>
+                    </div>
+                    <div class="btn-option" data-tint="clear">
+                        <i class="fa-solid fa-circle-xmark"></i>
+                        <span>Clear glass</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">
+                    <i class="fa-solid fa-gears"></i> Visual Options
+                </div>
+                <div class="option-grid">
+                    <div class="btn-option active" id="btn-gardening">
+                        <i class="fa-solid fa-leaf"></i>
+                        <span>Landscaping</span>
+                    </div>
+                    <div class="btn-option active" id="btn-pool">
+                        <i class="fa-solid fa-water"></i>
+                        <span>Splash Pool</span>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Right Viewports Panel -->
+        <aside class="right-panel interactive glass-panel">
+            
+            <div class="control-group">
+                <div class="section-title">
+                    <i class="fa-solid fa-cloud-sun"></i> Ambient Light
+                </div>
+                <label class="control-label">Solar & Shadow Angle</label>
+                <div class="light-presets" id="time-presets">
+                    <div class="preset-btn active" data-time="day">
+                        <i class="fa-solid fa-sun"></i>
+                        <span>Daylight</span>
+                    </div>
+                    <div class="preset-btn" data-time="sunset">
+                        <i class="fa-solid fa-cloud-sun-rain"></i>
+                        <span>Sunset</span>
+                    </div>
+                    <div class="preset-btn" data-time="night">
+                        <i class="fa-solid fa-moon"></i>
+                        <span>Midnight</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">
+                    <i class="fa-solid fa-video"></i> Camera Angles
+                </div>
+                <label class="control-label">Preset Viewpoints</label>
+                <div style="display: flex; flex-direction: column; gap: 8px;" id="camera-presets">
+                    <button class="view-btn active" data-cam="isometric">
+                        <i class="fa-solid fa-cube"></i> Isometric View
+                    </button>
+                    <button class="view-btn" data-cam="front">
+                        <i class="fa-solid fa-house"></i> Elevation Front
+                    </button>
+                    <button class="view-btn" data-cam="carport">
+                        <i class="fa-solid fa-car"></i> Porch & Louvers
+                    </button>
+                    <button class="view-btn" data-cam="balcony">
+                        <i class="fa-solid fa-door-open"></i> Balcony & Deck
+                    </button>
+                    <button class="view-btn" data-cam="pool">
+                        <i class="fa-solid fa-droplet"></i> Pool & Landscaping
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span class="control-label">Camera Auto-Orbit</span>
+                    <button class="btn-option" id="btn-auto-rotate" style="padding: 6px 12px; font-size: 0.75rem; flex-direction: row; gap: 5px;">
+                        <i class="fa-solid fa-rotate"></i>
+                        <span>Active</span>
+                    </button>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- Dynamic Description Box -->
+        <div class="info-card glass-panel" id="detail-card">
+            <h3 id="detail-title">Contemporary Kerala Elevation</h3>
+            <p id="detail-desc">Interactive 3D representation of an architectural villa designed by Habrick Construction in Palakkad, Kerala. Use controls to configure features.</p>
+        </div>
+
+        <!-- Bottom Contact Form / Footer -->
+        <footer class="bottom-bar">
+            
+            <div class="lead-form-panel interactive">
+                <h4>Get Free Design Estimation</h4>
+                <input type="text" placeholder="Name" class="lead-input" id="lead-name">
+                <input type="tel" placeholder="Phone Number" class="lead-input" id="lead-phone">
+                <input type="number" placeholder="Plot Sq.Ft (e.g. 2000)" class="lead-input" id="lead-sqft">
+                <button class="lead-btn" id="lead-submit">Request Consultation</button>
+            </div>
+            
+            <div class="interaction-helper">
+                <i class="fa-solid fa-computer-mouse"></i> Drag to Orbit | Scroll to Zoom | Right-Click to Pan
+            </div>
+        </footer>
+
+    </div>
+
+    <!-- Success Toast Notification -->
+    <div id="success-toast">
+        <i class="fa-solid fa-circle-check"></i> Inquiry submitted successfully! Callback requested.
+    </div>
+
+    <script>
+        // Global Error Handler to catch and display any startup/runtime failures directly on screen
+        window.onerror = function(message, source, lineno, colno, error) {
+            const status = document.getElementById('loader-status');
+            const bar = document.getElementById('loader-bar');
+            if (status && bar) {
+                status.innerHTML = `<span style="color:#ff3333; font-weight:bold; font-size:12px;">JS Error:</span> ${message} <span style="color:rgba(255,255,255,0.4); font-size:10px;">(Line ${lineno}:${colno})</span>`;
+                bar.style.background = '#ff3333';
+                bar.style.width = '100%';
+            }
+            return false;
+        };
+
+        // --- WebGL Engine State & Declarations ---
+        let scene, camera, renderer, controls;
+        let houseGroup, landscapeGroup, poolGroup;
+        let tempV; // Global temporary vector declaration to avoid GC thrashing in render loop
+        let concreteTexture; // Global variable to store concrete texture so it's accessible across all scopes
+        
+        // Materials (so they can be dynamically updated)
+        let matMainWall, matAccentWall, matWood, matGlass, matCarportPillars, matPoolWater;
+        
+        // Lighting
+        let sunLight, sunLightHelper, ambientLight, spotLights = [];
+        
+        // Interactive state
+        let currentCamPreset = 'isometric';
+        let isAutoRotating = false;
+        
+        // Hotspots position definition in 3D Space (uses plain data objects to avoid parsing crashes if THREE is uninstantiated)
+        const hotspots = [
+            {
+                id: 'carport',
+                number: '1',
+                pos: { x: 2.5, y: 1.8, z: 3.5 },
+                title: 'Kerala Sit-out Porch',
+                desc: 'An open-air carport and entrance veranda, combining local utility with modern geometric roof styling.',
+                camTarget: { x: 2.0, y: 1.5, z: 2.0 },
+                camPos: { x: 8.0, y: 2.5, z: 8.5 }
+            },
+            {
+                id: 'louvers',
+                number: '2',
+                pos: { x: 1.1, y: 2.2, z: 2.1 },
+                title: 'Teak Wooden Louvers',
+                desc: 'Vertical timber screen slats that offer natural shading, ventilation, and a striking structural texture.',
+                camTarget: { x: 1.1, y: 1.8, z: 2.0 },
+                camPos: { x: 3.8, y: 2.2, z: 5.0 }
+            },
+            {
+                id: 'balcony',
+                number: '3',
+                pos: { x: 1.2, y: 3.8, z: 2.6 },
+                title: 'Cantilever Balcony',
+                desc: 'First-floor deck with glass railing, hanging dynamically over the entryway sit-out below.',
+                camTarget: { x: 1.2, y: 4.0, z: 1.0 },
+                camPos: { x: 3.5, y: 5.0, z: 6.5 }
+            },
+            {
+                id: 'window',
+                number: '4',
+                pos: { x: -2.0, y: 1.8, z: 3.0 },
+                title: 'Living Room Glazing',
+                desc: 'Expansive glass windows designed with thick black metal frames, flooding the double-height lounge with sunlight.',
+                camTarget: { x: -2.0, y: 1.8, z: 2.0 },
+                camPos: { x: -6.0, y: 2.5, z: 8.0 }
+            },
+            {
+                id: 'pool',
+                number: '5',
+                pos: { x: -4.0, y: 0.1, z: 5.5 },
+                title: 'Landscape Splash Pool',
+                desc: 'A designer water element framing the villa facade, reflecting building accent lights at night.',
+                camTarget: { x: -4.0, y: 0.1, z: 5.5 },
+                camPos: { x: -9.0, y: 3.5, z: 10.0 }
+            }
+        ];
+
+        // --- Procedural Canvas Texture Generators ---
+        
+        // Generates concrete texture with noise pattern
+        function generateConcreteTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#f5f5f5';
+            ctx.fillRect(0, 0, 512, 512);
+            
+            // Add fine-grain concrete noise
+            const imgData = ctx.getImageData(0, 0, 512, 512);
+            const data = imgData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = (Math.random() - 0.5) * 12;
+                data[i] = Math.min(255, Math.max(0, data[i] + noise));
+                data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise));
+                data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise));
+            }
+            ctx.putImageData(imgData, 0, 0);
+            
+            // Add some larger structural dirt patches
+            for (let i = 0; i < 20; i++) {
+                ctx.fillStyle = `rgba(180, 180, 180, ${Math.random() * 0.05})`;
+                ctx.beginPath();
+                ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 50 + 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(6, 6);
+            return texture;
+        }
+
+        // Generates realistic wood texture with grains
+        function generateWoodTexture(colorBase, colorGrain) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 512;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = colorBase;
+            ctx.fillRect(0, 0, 512, 512);
+            
+            ctx.strokeStyle = colorGrain;
+            ctx.lineWidth = 1.2;
+            
+            // Draw stylized wood grain fibers
+            for (let y = 0; y < 512; y += 4) {
+                if (Math.random() > 0.3) {
+                    ctx.beginPath();
+                    let currentX = 0;
+                    ctx.moveTo(currentX, y);
+                    while (currentX < 512) {
+                        const step = Math.random() * 40 + 20;
+                        const wave = Math.sin(currentX * 0.02) * 3 + (Math.random() * 1.5 - 0.75);
+                        currentX += step;
+                        ctx.lineTo(currentX, y + wave);
+                    }
+                    ctx.stroke();
+                }
+            }
+            
+            // Add wood knot whorls
+            for (let i = 0; i < 3; i++) {
+                const kx = Math.random() * 512;
+                const ky = Math.random() * 512;
+                ctx.save();
+                ctx.translate(kx, ky);
+                ctx.scale(1, 0.15); // stretch horizontally
+                ctx.strokeStyle = colorGrain;
+                ctx.lineWidth = 1.0;
+                for (let r = 10; r < 60; r += 10) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            return texture;
+        }
+
+        // Water normal map generator (creates high-quality bump texture for water lighting)
+        function generateWaterNormalMap() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 256;
+            const ctx = canvas.getContext('2d');
+            
+            const imgData = ctx.createImageData(256, 256);
+            for (let x = 0; x < 256; x++) {
+                for (let y = 0; y < 256; y++) {
+                    const idx = (x + y * 256) * 4;
+                    // Sinusoidal math to calculate normal vectors (r=X, g=Y, b=Z)
+                    const nx = Math.sin(x * 0.15 + y * 0.05) * 60 + 128;
+                    const ny = Math.cos(y * 0.15 + x * 0.05) * 60 + 128;
+                    imgData.data[idx] = nx;
+                    imgData.data[idx+1] = ny;
+                    imgData.data[idx+2] = 255;
+                    imgData.data[idx+3] = 255;
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(3, 3);
+            return texture;
+        }
+
+        // Helper to show a critical loading error screen
+        function showFatalError(msg) {
+            const status = document.getElementById('loader-status');
+            const bar = document.getElementById('loader-bar');
+            if (status && bar) {
+                status.innerHTML = `<span style="color:#ff3333; font-weight:bold;">Fatal Error:</span> ${msg}`;
+                bar.style.background = '#ff3333';
+                bar.style.width = '100%';
+            }
+        }
+
+        // --- Initialization ---
+        function init() {
+            // 1. Dependency Checks
+            if (typeof THREE === 'undefined') {
+                showFatalError('Three.js failed to load. Please check your internet connection or browser shields (CDNs blocked).');
+                return;
+            }
+            if (typeof gsap === 'undefined') {
+                showFatalError('GSAP animation library failed to load. Please check your internet connection.');
+                return;
+            }
+
+            // Convert coordinates to Vector3 after THREE is safely loaded
+            hotspots.forEach(spot => {
+                spot.posVector = new THREE.Vector3(spot.pos.x, spot.pos.y, spot.pos.z);
+                spot.camTargetVector = new THREE.Vector3(spot.camTarget.x, spot.camTarget.y, spot.camTarget.z);
+                spot.camPosVector = new THREE.Vector3(spot.camPos.x, spot.camPos.y, spot.camPos.z);
+            });
+
+            tempV = new THREE.Vector3(); // Initialize global temp vector
+
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth || window.innerWidth;
+            const height = container.clientHeight || window.innerHeight;
+            
+            // Scene Setup
+            scene = new THREE.Scene();
+            const bgColorStr = varValue('--bg-color', '#08090b');
+            scene.background = new THREE.Color(bgColorStr);
+            scene.fog = new THREE.FogExp2(bgColorStr, 0.012);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            
+            // Renderer creation inside try-catch to handle WebGL disabled/blocked errors gracefully
+            try {
+                renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('webgl-canvas'), antialias: true, alpha: false });
+            } catch (err) {
+                showFatalError('WebGL is unsupported or blocked by Brave shields/browser settings.');
+                return;
+            }
+            
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05; // Prevent camera going below ground
+            controls.minDistance = 5;
+            controls.maxDistance = 45;
+            controls.target.set(0, 2, 0);
+            
+            // Set initial camera view
+            setCameraPreset('isometric', false);
+
+            // Groups
+            houseGroup = new THREE.Group();
+            landscapeGroup = new THREE.Group();
+            poolGroup = new THREE.Group();
+            
+            scene.add(houseGroup);
+            scene.add(landscapeGroup);
+            scene.add(poolGroup);
+            
+            // Generate materials
+            initMaterials();
+            
+            // Build scene contents
+            buildGround();
+            buildContemporaryHouse();
+            buildSplashPool();
+            buildLandscaping();
+            setupLights();
+            
+            // Generate Interactive Hotspots
+            buildHotspotsHUD();
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize);
+            setupUIHandlers();
+
+            // Simulate assets loading progress
+            simulateLoading();
+        }
+
+        // Helper to grab root CSS variables
+        function varValue(name, fallback) {
+            if (typeof document === 'undefined') return fallback;
+            const val = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+            return val || fallback;
+        }
+
+        // Loading Screen Animation
+        function simulateLoading() {
+            const bar = document.getElementById('loader-bar');
+            const status = document.getElementById('loader-status');
+            const steps = [
+                { progress: 20, text: 'Creating procedural concrete normal textures...' },
+                { progress: 50, text: 'Constructing Kerala contemporary villa mesh...' },
+                { progress: 75, text: 'Rendering water vectors and soft shadowmaps...' },
+                { progress: 100, text: 'Complete.' }
+            ];
+            
+            let stepIdx = 0;
+            const timer = setInterval(() => {
+                if (stepIdx < steps.length) {
+                    bar.style.width = steps[stepIdx].progress + '%';
+                    status.innerText = steps[stepIdx].text;
+                    stepIdx++;
+                } else {
+                    clearInterval(timer);
+                    // Fade out loader screen
+                    gsap.to('#loader', {
+                        opacity: 0,
+                        duration: 0.8,
+                        onComplete: () => {
+                            document.getElementById('loader').style.display = 'none';
+                            // Launch intro cinematic animation
+                            playIntroCinematic();
+                        }
+                    });
+                }
+            }, 600);
+        }
+
+        // Introductory camera pan animation
+        function playIntroCinematic() {
+            camera.position.set(25, 18, 25);
+            controls.target.set(0, 1.5, 0);
+            controls.update();
+
+            gsap.to(camera.position, {
+                x: 14,
+                y: 7,
+                z: 14,
+                duration: 2.5,
+                ease: 'power2.out',
+                onUpdate: () => controls.update()
+            });
+        }
+
+        // --- Materials Configuration ---
+        function initMaterials() {
+            // Textures
+            concreteTexture = generateConcreteTexture();
+            const teakTexture = generateWoodTexture('#ca8a04', '#78350f');
+            const waterNormal = generateWaterNormalMap();
+            
+            // Materials definition
+            matMainWall = new THREE.MeshStandardMaterial({
+                color: 0xeef0f2,
+                roughness: 0.8,
+                metalness: 0.05,
+                map: concreteTexture
+            });
+
+            matAccentWall = new THREE.MeshStandardMaterial({
+                color: 0x272c35,
+                roughness: 0.5,
+                metalness: 0.2
+            });
+
+            matWood = new THREE.MeshStandardMaterial({
+                map: teakTexture,
+                roughness: 0.6,
+                metalness: 0.1
+            });
+
+            matGlass = new THREE.MeshPhysicalMaterial({
+                color: 0xa9d6e5,
+                transparent: true,
+                opacity: 0.3,
+                roughness: 0.08,
+                metalness: 0.9,
+                transmission: 0.6,
+                ior: 1.5,
+                thickness: 0.2,
+                side: THREE.DoubleSide
+            });
+
+            matCarportPillars = new THREE.MeshStandardMaterial({
+                color: 0x111111,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+
+            matPoolWater = new THREE.MeshStandardMaterial({
+                color: 0x00b4d8,
+                roughness: 0.02,
+                metalness: 0.9,
+                normalMap: waterNormal,
+                normalScale: new THREE.Vector2(0.15, 0.15),
+                transparent: true,
+                opacity: 0.65,
+                side: THREE.DoubleSide
+            });
+        }
+
+        // --- Model Assembly ---
+
+        // Build green ground + grid
+        function buildGround() {
+            // Ground Lawn
+            const lawnGeo = new THREE.PlaneGeometry(100, 100);
+            const lawnMat = new THREE.MeshStandardMaterial({
+                color: 0x0f1411,
+                roughness: 0.95,
+                metalness: 0.0
+            });
+            const lawn = new THREE.Mesh(lawnGeo, lawnMat);
+            lawn.rotation.x = -Math.PI / 2;
+            lawn.receiveShadow = true;
+            landscapeGroup.add(lawn);
+
+            // Driveway paving tiles
+            const driveGeo = new THREE.PlaneGeometry(12, 14);
+            const driveMat = new THREE.MeshStandardMaterial({
+                color: 0x1e2124,
+                roughness: 0.85,
+                metalness: 0.1
+            });
+            const driveway = new THREE.Mesh(driveGeo, driveMat);
+            driveway.rotation.x = -Math.PI / 2;
+            driveway.position.set(2.5, 0.005, 5); // fits under carport
+            driveway.receiveShadow = true;
+            landscapeGroup.add(driveway);
+
+            // Visual Grid overlay for premium architectural mockup feel
+            const gridHelper = new THREE.GridHelper(100, 50, 0x00e5ff, 0x181a20);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
+        }
+
+        // Procedurally constructs the modern contemporary Kerala elevation
+        function buildContemporaryHouse() {
+            // Main house center shift
+            const house = new THREE.Group();
+            house.position.set(0, 0, 0);
+
+            // 1. Plinth Foundation (Raised floor platform)
+            const plinthGeo = new THREE.BoxGeometry(13, 0.3, 10);
+            const plinthMat = new THREE.MeshStandardMaterial({ color: 0x2c302e, roughness: 0.9 });
+            const plinth = new THREE.Mesh(plinthGeo, plinthMat);
+            plinth.position.y = 0.15;
+            plinth.receiveShadow = true;
+            plinth.castShadow = true;
+            house.add(plinth);
+
+            // 2. Ground Floor Left Block (Living area, White Concrete)
+            const gLeftGeo = new THREE.BoxGeometry(6.5, 2.7, 6.5);
+            const gLeft = new THREE.Mesh(gLeftGeo, matMainWall);
+            gLeft.position.set(-2.75, 1.65, 0.25);
+            gLeft.castShadow = true;
+            gLeft.receiveShadow = true;
+            house.add(gLeft);
+
+            // 3. Ground Floor Right Entry Block (Deep basalt charcoal wall)
+            const gRightGeo = new THREE.BoxGeometry(4.5, 2.7, 5.0);
+            const gRight = new THREE.Mesh(gRightGeo, matAccentWall);
+            gRight.position.set(2.75, 1.65, -0.5);
+            gRight.castShadow = true;
+            gRight.receiveShadow = true;
+            house.add(gRight);
+
+            // 4. Carport Roof (Horizontal charcoal cantilever deck)
+            const carportRoofGeo = new THREE.BoxGeometry(5.2, 0.25, 4.8);
+            const matCarportRoof = new THREE.MeshStandardMaterial({ color: 0x1f232b, roughness: 0.6 });
+            const carportRoof = new THREE.Mesh(carportRoofGeo, matCarportRoof);
+            carportRoof.position.set(3.4, 2.85, 2.5);
+            carportRoof.castShadow = true;
+            carportRoof.receiveShadow = true;
+            house.add(carportRoof);
+
+            // Carport Pillars (Steel posts supporting the roof)
+            const pillarGeo = new THREE.CylinderGeometry(0.06, 0.06, 2.7, 12);
+            
+            const pillarRight = new THREE.Mesh(pillarGeo, matCarportPillars);
+            pillarRight.position.set(5.6, 1.35, 4.5);
+            pillarRight.castShadow = true;
+            house.add(pillarRight);
+
+            const pillarLeft = new THREE.Mesh(pillarGeo, matCarportPillars);
+            pillarLeft.position.set(1.2, 1.35, 4.5);
+            pillarLeft.castShadow = true;
+            house.add(pillarLeft);
+
+            // 5. Entryway Double Door (Timber wood finish)
+            const doorFrameGeo = new THREE.BoxGeometry(1.4, 2.3, 0.1);
+            const doorFrameMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+            const doorFrame = new THREE.Mesh(doorFrameGeo, doorFrameMat);
+            doorFrame.position.set(2.4, 1.35, 2.02);
+            house.add(doorFrame);
+
+            const doorGeo = new THREE.BoxGeometry(1.2, 2.2, 0.08);
+            const door = new THREE.Mesh(doorGeo, matWood);
+            door.position.set(2.4, 1.3, 2.04);
+            door.castShadow = true;
+            house.add(door);
+            
+            // Gold Door Pull Bar Handle
+            const handleGeo = new THREE.CylinderGeometry(0.015, 0.015, 1.2, 8);
+            const handleMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.9, roughness: 0.1 });
+            const handle = new THREE.Mesh(handleGeo, handleMat);
+            handle.position.set(2.85, 1.3, 2.1);
+            door.add(handle);
+
+            // 6. Architectural Teak Wood Louver Screen (Fills porch corner gap)
+            const louverGroup = new THREE.Group();
+            for (let i = 0; i < 9; i++) {
+                const slatGeo = new THREE.BoxGeometry(0.04, 2.7, 0.04);
+                const slat = new THREE.Mesh(slatGeo, matWood);
+                slat.position.x = 1.0 + (i * 0.12);
+                slat.position.y = 1.5;
+                slat.position.z = 2.0;
+                slat.castShadow = true;
+                slat.receiveShadow = true;
+                louverGroup.add(slat);
+            }
+            house.add(louverGroup);
+
+            // 7. Large Glass Front Glazing (Living Room)
+            const glassFrameGeo = new THREE.BoxGeometry(3.6, 2.0, 0.08);
+            const glassFrame = new THREE.Mesh(glassFrameGeo, doorFrameMat);
+            glassFrame.position.set(-2.75, 1.5, 3.52);
+            house.add(glassFrame);
+
+            const glassPaneGeo = new THREE.BoxGeometry(3.5, 1.9, 0.05);
+            const glassPane = new THREE.Mesh(glassPaneGeo, matGlass);
+            glassPane.position.set(-2.75, 1.5, 3.53);
+            house.add(glassPane);
+
+            // Glass mullions (metal grids on windows)
+            const mullionV = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.9, 0.06), doorFrameMat);
+            mullionV.position.set(-2.75, 1.5, 3.54);
+            house.add(mullionV);
+
+            // 8. First Floor Cantilever Overhang (Asymmetric box structure shifted forward and left)
+            const fLeftGeo = new THREE.BoxGeometry(7.2, 2.8, 6.8);
+            const fLeft = new THREE.Mesh(fLeftGeo, matMainWall);
+            fLeft.position.set(-2.0, 4.4, 1.4); // sticks out 1.15m front, 0.75m left
+            fLeft.castShadow = true;
+            fLeft.receiveShadow = true;
+            house.add(fLeft);
+
+            // Wood panel inset frame inside first floor box facade
+            const woodPanelGeo = new THREE.BoxGeometry(6.6, 2.2, 0.08);
+            const woodPanel = new THREE.Mesh(woodPanelGeo, matWood);
+            woodPanel.position.set(-2.0, 4.4, 4.81);
+            woodPanel.castShadow = true;
+            house.add(woodPanel);
+
+            // Glass door leading out of Master bedroom to balcony
+            const fGlassFrame = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.8, 0.1), doorFrameMat);
+            fGlassFrame.position.set(-2.0, 4.4, 4.83);
+            house.add(fGlassFrame);
+
+            const fGlassPane = new THREE.Mesh(new THREE.BoxGeometry(2.5, 1.7, 0.06), matGlass);
+            fGlassPane.position.set(-2.0, 4.4, 4.84);
+            house.add(fGlassPane);
+
+            // 9. First Floor Balcony Deck (Lower terrace next to cantilever)
+            // It sits over the ground floor entry block roof
+            const balconySlabGeo = new THREE.BoxGeometry(5.0, 0.2, 5.0);
+            const balconySlab = new THREE.Mesh(balconySlabGeo, matAccentWall);
+            balconySlab.position.set(3.5, 2.8, -0.5);
+            balconySlab.castShadow = true;
+            balconySlab.receiveShadow = true;
+            house.add(balconySlab);
+
+            // Glass Railings for the balcony
+            const railFrameMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9 });
+            
+            // Balcony front glass panel
+            const rGlassFront = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.95, 0.05), matGlass);
+            rGlassFront.position.set(3.5, 3.375, 2.0);
+            rGlassFront.castShadow = true;
+            house.add(rGlassFront);
+            
+            const rHandrailFront = new THREE.Mesh(new THREE.BoxGeometry(4.84, 0.04, 0.06), railFrameMat);
+            rHandrailFront.position.set(3.5, 3.87, 2.0);
+            house.add(rHandrailFront);
+
+            // Balcony side glass panel (right edge)
+            const rGlassSide = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.95, 4.8), matGlass);
+            rGlassSide.position.set(5.9, 3.375, -0.4);
+            rGlassSide.castShadow = true;
+            house.add(rGlassSide);
+
+            const rHandrailSide = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 4.84), railFrameMat);
+            rHandrailSide.position.set(5.9, 3.87, -0.4);
+            house.add(rHandrailSide);
+
+            // 10. First Floor Right Master Block (Dark stucco finish, recessed back)
+            const fRightGeo = new THREE.BoxGeometry(4.2, 2.7, 4.4);
+            const fRight = new THREE.Mesh(fRightGeo, matAccentWall);
+            fRight.position.set(3.5, 4.25, -2.5);
+            fRight.castShadow = true;
+            fRight.receiveShadow = true;
+            house.add(fRight);
+
+            // 11. Tall Concrete Staircase Tower (Vertical structural massing on left flank)
+            const towerGeo = new THREE.BoxGeometry(2.0, 7.2, 2.6);
+            const matTower = new THREE.MeshStandardMaterial({ color: 0xd9dbde, roughness: 0.85, map: concreteTexture });
+            const tower = new THREE.Mesh(towerGeo, matTower);
+            tower.position.set(-6.2, 3.6, -1.5);
+            tower.castShadow = true;
+            tower.receiveShadow = true;
+            house.add(tower);
+
+            // Vertical staircase glazing window
+            const towerGlassFrame = new THREE.Mesh(new THREE.BoxGeometry(0.6, 5.0, 0.1), doorFrameMat);
+            towerGlassFrame.position.set(-6.2, 3.6, -0.19);
+            house.add(towerGlassFrame);
+
+            const towerGlass = new THREE.Mesh(new THREE.BoxGeometry(0.5, 4.9, 0.05), matGlass);
+            towerGlass.position.set(-6.2, 3.6, -0.18);
+            house.add(towerGlass);
+
+            // Horizontal design lines on the concrete tower to simulate panel joints
+            for(let h = 1; h <= 5; h++) {
+                const groove = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.02, 2.62), doorFrameMat);
+                groove.position.set(-6.2, h * 1.2, -1.5);
+                house.add(groove);
+            }
+
+            // 12. Main Roof Coping Slabs (Slightly overhanging concrete roofs)
+            const leftRoofGeo = new THREE.BoxGeometry(7.6, 0.2, 7.2);
+            const leftRoof = new THREE.Mesh(leftRoofGeo, matMainWall);
+            leftRoof.position.set(-2.0, 5.9, 1.4);
+            leftRoof.castShadow = true;
+            house.add(leftRoof);
+
+            const rightRoofGeo = new THREE.BoxGeometry(4.4, 0.2, 4.6);
+            const rightRoof = new THREE.Mesh(rightRoofGeo, matAccentWall);
+            rightRoof.position.set(3.5, 5.7, -2.5);
+            rightRoof.castShadow = true;
+            house.add(rightRoof);
+
+            // Add the fully built house model group to the scene
+            houseGroup.add(house);
+        }
+
+        // Build premium front yard designer splash pool
+        function buildSplashPool() {
+            // Pool Frame / Coping border
+            const borderGeo = new THREE.BoxGeometry(6.4, 0.2, 4.4);
+            const borderMat = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.7 });
+            const border = new THREE.Mesh(borderGeo, borderMat);
+            border.position.set(-3.7, 0.05, 5.5);
+            border.receiveShadow = true;
+            poolGroup.add(border);
+
+            // Deep inner box for pool floor
+            const innerGeo = new THREE.BoxGeometry(6.0, 0.5, 4.0);
+            const innerMat = new THREE.MeshStandardMaterial({ color: 0xade8f4, roughness: 0.5 });
+            const poolInner = new THREE.Mesh(innerGeo, innerMat);
+            poolInner.position.set(-3.7, -0.22, 5.5);
+            poolInner.receiveShadow = true;
+            poolGroup.add(poolInner);
+
+            // Animated water plane
+            const waterGeo = new THREE.PlaneGeometry(6.0, 4.0);
+            const water = new THREE.Mesh(waterGeo, matPoolWater);
+            water.rotation.x = -Math.PI / 2;
+            water.position.set(-3.7, 0.08, 5.5);
+            poolGroup.add(water);
+        }
+
+        // Build premium designer gardens, hedges and palms
+        function buildLandscaping() {
+            // Planter Bed under cantilever
+            const bedGeo = new THREE.BoxGeometry(5.0, 0.15, 1.0);
+            const bedMat = new THREE.MeshStandardMaterial({ color: 0x181a18, roughness: 0.9 });
+            const bed = new THREE.Mesh(bedGeo, bedMat);
+            bed.position.set(-2.0, 0.075, 4.0);
+            bed.receiveShadow = true;
+            landscapeGroup.add(bed);
+
+            // Decorative low-poly architectural hedges
+            const hedgeGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+            const hedgeMat = new THREE.MeshStandardMaterial({ color: 0x1e351d, roughness: 0.9 });
+            
+            for(let i = 0; i < 9; i++) {
+                const hedge = new THREE.Mesh(hedgeGeo, hedgeMat);
+                hedge.position.set(-4.0 + (i * 0.5), 0.25, 4.0);
+                hedge.castShadow = true;
+                landscapeGroup.add(hedge);
+            }
+
+            // Tall architectural cylinder plants (Snake plant style)
+            const plantGeo = new THREE.CylinderGeometry(0.01, 0.03, 0.9, 5);
+            const plantMat = new THREE.MeshStandardMaterial({ color: 0x2c5e32, roughness: 0.8 });
+            
+            for (let i = 0; i < 6; i++) {
+                const plant = new THREE.Mesh(plantGeo, plantMat);
+                plant.position.set(4.5 + (Math.random() - 0.5) * 0.5, 0.45, 0.5 + (i * 0.4));
+                plant.rotation.x = (Math.random() - 0.5) * 0.15;
+                plant.rotation.z = (Math.random() - 0.5) * 0.15;
+                plant.castShadow = true;
+                landscapeGroup.add(plant);
+            }
+
+            // High-End Minimalist Palm Tree
+            const palmGroup = new THREE.Group();
+            palmGroup.position.set(-8.0, 0, 5.0);
+            
+            // Trunk
+            const trunkGeo = new THREE.CylinderGeometry(0.08, 0.14, 5.0, 8);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3d3023, roughness: 0.9 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 2.5;
+            trunk.rotation.z = 0.05; // stylish lean
+            trunk.castShadow = true;
+            palmGroup.add(trunk);
+
+            // Fronds (Procedural structural plane leaves)
+            const leafMat = new THREE.MeshStandardMaterial({ color: 0x143b18, roughness: 0.8, side: THREE.DoubleSide });
+            for (let r = 0; r < 9; r++) {
+                const leafGeo = new THREE.PlaneGeometry(0.6, 2.2);
+                const leaf = new THREE.Mesh(leafGeo, leafMat);
+                leaf.position.set(0, 5.0, 0);
+                leaf.rotation.x = -Math.PI / 3.5;
+                leaf.rotation.y = (r * Math.PI * 2) / 9;
+                leaf.rotation.z = Math.PI / 12;
+                leaf.castShadow = true;
+                palmGroup.add(leaf);
+            }
+            landscapeGroup.add(palmGroup);
+        }
+
+        // --- Lights and Shadow Setup ---
+        function setupLights() {
+            // Global Ambient illumination
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.35);
+            scene.add(ambientLight);
+
+            // Sunlight Directional Light with deep shadow mapping
+            sunLight = new THREE.DirectionalLight(0xfff5ea, 1.4);
+            sunLight.position.set(12, 18, 10);
+            sunLight.castShadow = true;
+            
+            // Fine-tune shadow parameters for architectural detail
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 45;
+            
+            const d = 12;
+            sunLight.shadow.camera.left = -d;
+            sunLight.shadow.camera.right = d;
+            sunLight.shadow.camera.top = d;
+            sunLight.shadow.camera.bottom = -d;
+            sunLight.shadow.bias = -0.0005;
+            
+            scene.add(sunLight);
+
+            // Architectural spot lighting for premium night elevation visual
+            const spotLightMat = new THREE.MeshBasicMaterial({ color: 0xffa200 });
+            const spotConeGeo = new THREE.CylinderGeometry(0.01, 0.06, 0.12, 8);
+
+            // Spot 1: Entrance Porch ceiling pointing down
+            createSpotlight(new THREE.Vector3(3.2, 2.7, 3.5), new THREE.Vector3(3.2, 0, 3.5), 0.7, spotLightMat, spotConeGeo);
+            
+            // Spot 2: First floor Cantilever underside illuminating teak screen
+            createSpotlight(new THREE.Vector3(1.6, 2.7, 1.9), new THREE.Vector3(1.6, 0, 1.9), 1.0, spotLightMat, spotConeGeo);
+
+            // Spot 3: Staircase tower facade wash
+            createSpotlight(new THREE.Vector3(-6.2, 6.9, -0.1), new THREE.Vector3(-6.2, 0, -0.1), 0.9, spotLightMat, spotConeGeo);
+
+            // Spot 4: Ground floor garden spotlight pointing UP
+            createSpotlight(new THREE.Vector3(-7.5, 0.1, 4.2), new THREE.Vector3(-8.0, 5.0, 5.0), 1.2, spotLightMat, spotConeGeo, true);
+        }
+
+        // Spot Light Helper
+        function createSpotlight(pos, targetPos, intensity, fixtureMat, fixtureGeo, pointingUp = false) {
+            // Visual fixture cylinder
+            const fixture = new THREE.Mesh(fixtureGeo, fixtureMat);
+            fixture.position.copy(pos);
+            if (pointingUp) {
+                fixture.rotation.x = Math.PI;
+            }
+            scene.add(fixture);
+
+            const spot = new THREE.SpotLight(0xffd1a4, intensity);
+            spot.position.copy(pos);
+            spot.target.position.copy(targetPos);
+            spot.angle = Math.PI / 5;
+            spot.penumbra = 0.6;
+            spot.castShadow = true;
+            spot.shadow.mapSize.width = 512;
+            spot.shadow.mapSize.height = 512;
+            spot.shadow.bias = -0.001;
+            
+            scene.add(spot);
+            scene.add(spot.target);
+            
+            spotLights.push({ light: spot, visual: fixture, initialIntensity: intensity });
+        }
+
+        // --- HUD Overlay System (Synchronizes HTML elements to 3D coords) ---
+        function buildHotspotsHUD() {
+            const container = document.getElementById('hotspots-container');
+            container.innerHTML = ''; // Clear
+
+            hotspots.forEach((spot, idx) => {
+                const element = document.createElement('div');
+                element.className = 'hotspot-label';
+                element.id = `hotspot-${spot.id}`;
+                element.setAttribute('data-index', idx);
+                
+                element.innerHTML = `
+                    <div class="hotspot-dot">${spot.number}</div>
+                    <div class="hotspot-ring"></div>
+                    <div class="hotspot-tooltip">
+                        <h4>${spot.title}</h4>
+                        <p>${spot.desc}</p>
+                    </div>
+                `;
+
+                // Hover & Click behaviors
+                element.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    focusHotspot(idx);
+                });
+
+                container.appendChild(element);
+                spot.domElement = element;
+            });
+        }
+
+        // Trigger action when Hotspot clicked
+        function focusHotspot(idx) {
+            const spot = hotspots[idx];
+            
+            // Highlight card at bottom
+            document.getElementById('detail-title').innerText = spot.title;
+            document.getElementById('detail-desc').innerText = spot.desc;
+            
+            // GSAP camera fly animation
+            gsap.killTweensOf(camera.position);
+            gsap.killTweensOf(controls.target);
+
+            // Deactivate auto orbit
+            isAutoRotating = false;
+            document.getElementById('btn-auto-rotate').classList.remove('active');
+            controls.autoRotate = false;
+
+            // Animate target
+            gsap.to(controls.target, {
+                x: spot.camTarget.x,
+                y: spot.camTarget.y,
+                z: spot.camTarget.z,
+                duration: 1.6,
+                ease: 'power2.inOut',
+                onUpdate: () => controls.update()
+            });
+
+            // Animate position
+            gsap.to(camera.position, {
+                x: spot.camPos.x,
+                y: spot.camPos.y,
+                z: spot.camPos.z,
+                duration: 1.6,
+                ease: 'power2.inOut'
+            });
+
+            // Reset camera views buttons active state
+            document.querySelectorAll('#camera-presets .view-btn').forEach(btn => btn.classList.remove('active'));
+        }
+
+        // Projection loop: converts 3D world vectors to 2D Screen coords for HTML elements
+        function updateHotspotsProjection() {
+            if (!hotspots.length || !tempV) return;
+            
+            const widthHalf = window.innerWidth / 2;
+            const heightHalf = window.innerHeight / 2;
+
+            hotspots.forEach(spot => {
+                if (!spot.domElement || !spot.posVector) return;
+
+                tempV.copy(spot.posVector);
+                tempV.project(camera);
+
+                // Check if hotspot is behind the camera frustum clip plane
+                if (tempV.z > 1) {
+                    spot.domElement.style.display = 'none';
+                    return;
+                }
+
+                spot.domElement.style.display = 'flex';
+                const x = (tempV.x * widthHalf) + widthHalf;
+                const y = -(tempV.y * heightHalf) + heightHalf;
+                
+                spot.domElement.style.left = `${x}px`;
+                spot.domElement.style.top = `${y}px`;
+            });
+        }
+
+        // --- Camera Viewpoint Presets ---
+        function setCameraPreset(presetName, animate = true) {
+            currentCamPreset = presetName;
+            
+            let targetPos = new THREE.Vector3(0, 1.8, 0);
+            let camPos = new THREE.Vector3(14, 7, 14);
+
+            switch (presetName) {
+                case 'isometric':
+                    targetPos.set(0, 2, 0);
+                    camPos.set(13, 8, 13);
+                    break;
+                case 'front':
+                    targetPos.set(0, 2, 0);
+                    camPos.set(0, 3.5, 17);
+                    break;
+                case 'carport':
+                    targetPos.set(2.4, 1.4, 2.0);
+                    camPos.set(5.5, 2.0, 6.0);
+                    break;
+                case 'balcony':
+                    targetPos.set(2.0, 3.8, 0);
+                    camPos.set(4.5, 5.0, 5.5);
+                    break;
+                case 'pool':
+                    targetPos.set(-4.0, 0.2, 5.5);
+                    camPos.set(-9.5, 3.2, 10.5);
+                    break;
+            }
+
+            // Update UI buttons active state
+            document.querySelectorAll('#camera-presets .view-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-cam') === presetName);
+            });
+
+            if (animate) {
+                gsap.killTweensOf(camera.position);
+                gsap.killTweensOf(controls.target);
+
+                gsap.to(controls.target, {
+                    x: targetPos.x,
+                    y: targetPos.y,
+                    z: targetPos.z,
+                    duration: 1.5,
+                    ease: 'power2.inOut',
+                    onUpdate: () => controls.update()
+                });
+
+                gsap.to(camera.position, {
+                    x: camPos.x,
+                    y: camPos.y,
+                    z: camPos.z,
+                    duration: 1.5,
+                    ease: 'power2.inOut'
+                });
+            } else {
+                camera.position.copy(camPos);
+                controls.target.copy(targetPos);
+                controls.update();
+            }
+        }
+
+        // --- UI Control Panel Handlers ---
+        function setupUIHandlers() {
+            // 1. Paint Color Selection
+            document.getElementById('wall-paint-picker').addEventListener('click', (e) => {
+                const opt = e.target.closest('.color-option');
+                if (!opt) return;
+
+                document.querySelectorAll('#wall-paint-picker .color-option').forEach(el => el.classList.remove('active'));
+                opt.classList.add('active');
+
+                const colorStr = opt.getAttribute('data-color');
+                const col = new THREE.Color(colorStr);
+                
+                // Animate wall color change dynamically
+                gsap.to(matMainWall.color, {
+                    r: col.r,
+                    g: col.g,
+                    b: col.b,
+                    duration: 0.5
+                });
+            });
+
+            // 2. Wood Siding Configurator
+            document.getElementById('wood-texture-picker').addEventListener('click', (e) => {
+                const opt = e.target.closest('.btn-option');
+                if (!opt) return;
+
+                document.querySelectorAll('#wood-texture-picker .btn-option').forEach(el => el.classList.remove('active'));
+                opt.classList.add('active');
+
+                const woodType = opt.getAttribute('data-wood');
+                let baseColor, grainColor;
+                
+                switch(woodType) {
+                    case 'teak':
+                        baseColor = '#ca8a04'; grainColor = '#78350f'; // Warm teak gold
+                        break;
+                    case 'oak':
+                        baseColor = '#5c4033'; grainColor = '#2d1e18'; // Dark charcoal brown
+                        break;
+                    case 'walnut':
+                        baseColor = '#8c6239'; grainColor = '#4a311b'; // Rich natural walnut
+                        break;
+                    case 'ash':
+                        baseColor = '#a8a29e'; grainColor = '#57534e'; // Scandinavian ash grey
+                        break;
+                }
+
+                // Generate new canvas wood texture and map it
+                const newWoodTex = generateWoodTexture(baseColor, grainColor);
+                matWood.map = newWoodTex;
+                matWood.needsUpdate = true;
+            });
+
+            // 3. Glass Window Tint Pickers
+            document.getElementById('glass-tint-picker').addEventListener('click', (e) => {
+                const opt = e.target.closest('.btn-option');
+                if (!opt) return;
+
+                document.querySelectorAll('#glass-tint-picker .btn-option').forEach(el => el.classList.remove('active'));
+                opt.classList.add('active');
+
+                const tint = opt.getAttribute('data-tint');
+                let glassCol, glassOpacity, glassTrans;
+
+                switch(tint) {
+                    case 'cyan':
+                        glassCol = 0xa9d6e5; glassOpacity = 0.35; glassTrans = 0.65;
+                        break;
+                    case 'bronze':
+                        glassCol = 0xd4a373; glassOpacity = 0.45; glassTrans = 0.55;
+                        break;
+                    case 'dark':
+                        glassCol = 0x1a2130; glassOpacity = 0.8; glassTrans = 0.15;
+                        break;
+                    case 'clear':
+                        glassCol = 0xffffff; glassOpacity = 0.15; glassTrans = 0.9;
+                        break;
+                }
+
+                gsap.to(matGlass.color, { r: ((glassCol >> 16) & 255)/255, g: ((glassCol >> 8) & 255)/255, b: (glassCol & 255)/255, duration: 0.4 });
+                gsap.to(matGlass, { opacity: glassOpacity, transmission: glassTrans, duration: 0.4 });
+            });
+
+            // 4. Gardening & Pool Visibility toggles
+            document.getElementById('btn-gardening').addEventListener('click', (e) => {
+                const btn = e.currentTarget;
+                btn.classList.toggle('active');
+                landscapeGroup.visible = btn.classList.contains('active');
+            });
+
+            document.getElementById('btn-pool').addEventListener('click', (e) => {
+                const btn = e.currentTarget;
+                btn.classList.toggle('active');
+                poolGroup.visible = btn.classList.contains('active');
+                // Hide or show pool hotspot accordingly
+                const poolHotspot = document.getElementById('hotspot-pool');
+                if (poolHotspot) {
+                    poolHotspot.style.opacity = poolGroup.visible ? '1' : '0';
+                    poolHotspot.style.pointerEvents = poolGroup.visible ? 'auto' : 'none';
+                }
+            });
+
+            // 5. Time of Day Light Presets (Day, Sunset, Night)
+            document.getElementById('time-presets').addEventListener('click', (e) => {
+                const btn = e.target.closest('.preset-btn');
+                if (!btn) return;
+
+                document.querySelectorAll('#time-presets .preset-btn').forEach(el => el.classList.remove('active'));
+                btn.classList.add('active');
+
+                const timeStr = btn.getAttribute('data-time');
+                updateTimeOfDayLighting(timeStr);
+            });
+
+            // 6. Preset Camera angles click
+            document.getElementById('camera-presets').addEventListener('click', (e) => {
+                const btn = e.target.closest('.view-btn');
+                if (!btn) return;
+                
+                const camPreset = btn.getAttribute('data-cam');
+                setCameraPreset(camPreset);
+            });
+
+            // 7. Auto Rotate Camera Toggle
+            document.getElementById('btn-auto-rotate').addEventListener('click', (e) => {
+                const btn = e.currentTarget;
+                btn.classList.toggle('active');
+                isAutoRotating = btn.classList.contains('active');
+                controls.autoRotate = isAutoRotating;
+                controls.autoRotateSpeed = 1.0;
+            });
+
+            // 8. Lead Consultation Request form submission
+            document.getElementById('lead-submit').addEventListener('click', () => {
+                const name = document.getElementById('lead-name').value.trim();
+                const phone = document.getElementById('lead-phone').value.trim();
+                const sqft = document.getElementById('lead-sqft').value.trim();
+
+                if (!name || !phone) {
+                    alert('Please enter your name and phone number to request a callback.');
+                    return;
+                }
+
+                // Show success toast notification
+                const toast = document.getElementById('success-toast');
+                toast.classList.add('show');
+                
+                // Clear fields
+                document.getElementById('lead-name').value = '';
+                document.getElementById('lead-phone').value = '';
+                document.getElementById('lead-sqft').value = '';
+
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 4000);
+            });
+        }
+
+        // Updates lighting configuration based on daylight preset selected
+        function updateTimeOfDayLighting(preset) {
+            let skyCol, sunCol, sunIntensity, ambientIntensity, sunPos;
+            let showInteriorLights = false;
+
+            switch(preset) {
+                case 'day':
+                    skyCol = 0x08090b; // keep dark space background
+                    sunCol = 0xfff5ea;
+                    sunIntensity = 1.4;
+                    ambientIntensity = 0.35;
+                    sunPos = new THREE.Vector3(12, 18, 10);
+                    showInteriorLights = false;
+                    break;
+                case 'sunset':
+                    skyCol = 0x120a1c;
+                    sunCol = 0xfc6a03; // golden-orange sun
+                    sunIntensity = 0.9;
+                    ambientIntensity = 0.25;
+                    sunPos = new THREE.Vector3(18, 6, 8);
+                    showInteriorLights = true;
+                    break;
+                case 'night':
+                    skyCol = 0x020305;
+                    sunCol = 0x7b9cff; // dim moon glow
+                    sunIntensity = 0.12;
+                    ambientIntensity = 0.08;
+                    sunPos = new THREE.Vector3(-10, 15, -8);
+                    showInteriorLights = true;
+                    break;
+            }
+
+            // Animate global background/fog colors
+            const targetSky = new THREE.Color(skyCol);
+            gsap.to(scene.background, { r: targetSky.r, g: targetSky.g, b: targetSky.b, duration: 1.0 });
+            gsap.to(scene.fog.color, { r: targetSky.r, g: targetSky.g, b: targetSky.b, duration: 1.0 });
+
+            // Animate sunlight intensities
+            const targetSun = new THREE.Color(sunCol);
+            gsap.to(sunLight.color, { r: targetSun.r, g: targetSun.g, b: targetSun.b, duration: 1.0 });
+            gsap.to(sunLight, { intensity: sunIntensity, duration: 1.0 });
+            gsap.to(ambientLight, { intensity: ambientIntensity, duration: 1.0 });
+            
+            // Animate sun position
+            gsap.to(sunLight.position, {
+                x: sunPos.x,
+                y: sunPos.y,
+                z: sunPos.z,
+                duration: 1.2
+            });
+
+            // Toggle architectural spot spotlights
+            spotLights.forEach(spotObj => {
+                const targetIntensity = showInteriorLights ? spotObj.initialIntensity : 0.0;
+                gsap.to(spotObj.light, { intensity: targetIntensity, duration: 0.8 });
+            });
+        }
+
+        // Handles responsive canvas scaling on viewport resize
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            
+            renderer.setSize(w, h);
+        }
+
+        // --- Render Animation Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 1. Water Ripple normal coordinates shifts
+            if (matPoolWater && matPoolWater.normalMap) {
+                matPoolWater.normalMap.offset.x += 0.0006;
+                matPoolWater.normalMap.offset.y += 0.0004;
+            }
+
+            // 2. Controls update
+            controls.update();
+
+            // 3. Project 3D Hotspot coordinate nodes to screen space HTML
+            updateHotspotsProjection();
+
+            // 4. Render Scene
+            renderer.render(scene, camera);
+        }
+
+        // Kick off engine
+        window.onload = () => {
+            init();
+            animate();
+        };
+
+    </script>
+</body>
+</html>
